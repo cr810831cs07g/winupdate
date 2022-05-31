@@ -55,7 +55,7 @@ with open( site + '.csv', 'w') as f:
         'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'
         }
         response = requests.request("POST", url_t, headers=headers_t, data=payload_t)
-        res_reg = re.compile(r'https.*cab')
+        res_reg = re.compile(r'https.*\w')
         res_match = res_reg.search(response.text)
         download_link.append(res_match.group(0))        # download link
         writer.writerow([title[i_count+1], catalog_url[i_count], download_link[i_count]])
