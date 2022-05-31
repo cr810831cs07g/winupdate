@@ -3,43 +3,61 @@ import requests, re
 from bs4 import BeautifulSoup
 import csv, pandas, time, random
 
-headerlist = ["Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36 OPR/43.0.2442.991",
-            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36 OPR/42.0.2393.94",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.78 Safari/537.36 OPR/47.0.2631.39",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.113 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 5.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:54.0) Gecko/20100101 Firefox/54.0",
-            "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:54.0) Gecko/20100101 Firefox/54.0",
-            "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:56.0) Gecko/20100101 Firefox/56.0",
-            "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko"]
+site = input("Microsoft Update Catalog Search: ")
 
-user_agent = random.choice(headerlist)
-headers = {'User-Agent': user_agent}
-url = "https://www.catalog.update.microsoft.com/Search.aspx?q=10%20security"
+headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36'}
+url = "https://www.catalog.update.microsoft.com/Search.aspx?q=" + site
 result = requests.get(url, headers=headers)
 
+with open( site + '.csv', 'w') as f:
+    writer = csv.writer(f)
+    writer.writerow(['Title', 'Catalog Link', 'Download Link'])
 
-soup = BeautifulSoup(result.text, 'html.parser')
-title = []
+    soup = BeautifulSoup(result.text, 'html.parser')
+    title = []
+    t1 = soup.find_all("div"=="tableContainer" , class_ = 'contentTextItemSpacerNoBreakLink')
+    for link in t1:  
+        title.append(link.text)     # title
 
-t1 = soup.find_all("div"=="tableContainer" , class_ = 'contentTextItemSpacerNoBreakLink') # title
-for link in t1:  
-    title.append(link.text)
+    c_url = 'https://www.catalog.update.microsoft.com/ScopedViewInline.aspx?updateid='   
+    urllist = []
+    catalog_url = []
+    regex = r'\bgoToDetails+(.*)'
+    tmp_reg = r'\".*\"'
+    t2 = re.findall(regex, str(t1))
+    for i in t2:
+        tmp_reg = re.compile(r'\w.*\w')
+        tmp_match = tmp_reg.search(i)
+        #print(tmp_match.group(0))
+        catalog_url.append(c_url + tmp_match.group(0))    # catalog url
+        urllist.append(tmp_match.group(0))
 
-#goToDetails("49b17871-bef1-48b0-84cd-39e3b56f96ea");   36
-str_pat = re.compile(r'\"(.*)\"')
-regex = "([goToDetails])"
-regex = "(r'\"(.*)\"')"
-emails = re.find(regex, soup)
-print()
-
-regex = r'\bgoToDetails+(.*)'
-t2 = re.findall(regex, str(t1))
-#result = re.sub('\W+', '', value).replace("_", '')
-t2 = [re.sub(r'("\r"|;|>|"\")', '', i) for i in t2]
-t2 = [t2.sub('\r|"\"|;\>', '', i) for i in t2]
-com1 = re.compile(r'\"(.*)\"')
-t3 = com1.findall(str(t2))
-
+    i_count = 0
+    url_t = "https://www.catalog.update.microsoft.com/DownloadDialog.aspx"
+    download_link = []
+    for i in urllist:
+        payload_t = "updateIDs=[{\"size\":0,\"languages\":\"\",\"uidInfo\":\"%s\",\"updateID\":\"%s\"}]"%(i,i)
+        headers_t = {
+        'Cache-Control': 'max-age=0',
+        'Sec-Ch-Ua': '"(Not(A:Brand";v="8", "Chromium";v="101"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Upgrade-Insecure-Requests': '1',
+        'Origin': 'https://www.catalog.update.microsoft.com',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Dest': 'document',
+        'Referer': 'https://www.catalog.update.microsoft.com/DownloadDialog.aspx',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7'
+        }
+        response = requests.request("POST", url_t, headers=headers_t, data=payload_t)
+        res_reg = re.compile(r'https.*cab')
+        res_match = res_reg.search(response.text)
+        download_link.append(res_match.group(0))        # download link
+        writer.writerow([title[i_count+1], catalog_url[i_count], download_link[i_count]])
+        i_count = i_count + 1
+        print(res_match.group(0))
